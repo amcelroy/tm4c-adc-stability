@@ -10,11 +10,12 @@ void EnableInterrupts(void){
     asm("\t cpsie i\n");
 }
 
-void timeout() {
-    int x = 1000;
+int timeout() {
+    int x = 10000;
     while(x > 0){
         x--;
     }
+    return x;
 }
 
 void adc0_ss3_isr_handler() {
@@ -26,7 +27,7 @@ void adc0_ss3_isr_handler() {
 
 void init_adc() {
     SYSCTL_RCGCADC_R |= 0x01;     // 1) activate ADC0
-    timeout();
+    volatile int x = timeout();
 
     ADC0_PC_R = 0x07;             // 2) configure for 1M samples/sec
     ADC0_SSPRI_R = 0x3210;        // 3) sequencer 0 is highest, sequencer 3 is lowest
@@ -44,7 +45,7 @@ void init_adc() {
 
 void init_gpio() {
     SYSCTL_RCGCGPIO_R |= 0x10;    // Port E clock
-    timeout();
+    volatile int x = timeout();
 
     GPIO_PORTE_DIR_R &= ~0x01;    // make PE0 input
     GPIO_PORTE_AFSEL_R |= 0x01;   // enable alternate function on PE0
@@ -52,7 +53,7 @@ void init_gpio() {
     GPIO_PORTE_AMSEL_R |= 0x01;   // enable analog functionality on PE0
 
     SYSCTL_RCGCGPIO_R |= 0x4;    // Port C clock
-    timeout();
+    x = timeout();
 
     GPIO_PORTC_DIR_R = 0xFF;    // make Port C output
     GPIO_PORTC_AFSEL_R = 0x0;   // disable alternate function on PE0
@@ -62,7 +63,7 @@ void init_gpio() {
 
 void init_timer(uint32_t period){
     SYSCTL_RCGCTIMER_R |= 0x01;   // 4) activate timer0
-    timeout();
+    volatile int x = timeout();
 
     TIMER0_CTL_R = 0x00000000;    // disable timer0A during setup
     TIMER0_CTL_R |= 0x00000020;   // enable timer0A trigger to ADC
@@ -77,10 +78,11 @@ int main(void)
 {
 
     PLL_Init(80000000);
+    int x = timeout();
 
     init_gpio();
 
-    init_timer(120);   // <--- !!! Change me
+    init_timer(124);   // <--- !!! Change me
 
     init_adc();
 

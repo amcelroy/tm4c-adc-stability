@@ -278,7 +278,8 @@ FaultISR(void)
     //
     // Enter an infinite loop.
     //
-    while(1)
+    volatile int i = 1;
+    while(i)
     {
     }
 }
