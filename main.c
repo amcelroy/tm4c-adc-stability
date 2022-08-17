@@ -2,6 +2,21 @@
 #include "tm4c123gh6pm.h"
 #include "PLL.h"
 
+void DisableInterrupts(void){
+    asm("\t cpsid i\n");
+}
+
+void EnableInterrupts(void){
+    asm("\t cpsie i\n");
+}
+
+void timeout() {
+    int x = 1000;
+    while(x > 0){
+        x--;
+    }
+}
+
 void adc0_ss3_isr_handler() {
     ADC0_ISC_R |= 0x8; //Clear the interrupt, only SS3 is active
     GPIO_PORTC_DATA_R |= 0x40; // Toggle Port C6 high
@@ -11,7 +26,7 @@ void adc0_ss3_isr_handler() {
 
 void init_adc() {
     SYSCTL_RCGCADC_R |= 0x01;     // 1) activate ADC0
-    volatile uint32_t delay = SYSCTL_RCGCADC_R;
+    timeout();
 
     ADC0_PC_R = 0x07;             // 2) configure for 1M samples/sec
     ADC0_SSPRI_R = 0x3210;        // 3) sequencer 0 is highest, sequencer 3 is lowest
@@ -29,14 +44,16 @@ void init_adc() {
 
 void init_gpio() {
     SYSCTL_RCGCGPIO_R |= 0x10;    // Port E clock
-    volatile uint32_t delay = SYSCTL_RCGCGPIO_R;    // allow time for clock to stabilize
+    timeout();
+
     GPIO_PORTE_DIR_R &= ~0x01;    // make PE0 input
     GPIO_PORTE_AFSEL_R |= 0x01;   // enable alternate function on PE0
     GPIO_PORTE_DEN_R &= ~0x01;    // disable digital I/O on PE0
     GPIO_PORTE_AMSEL_R |= 0x01;   // enable analog functionality on PE0
 
     SYSCTL_RCGCGPIO_R |= 0x4;    // Port C clock
-    delay = SYSCTL_RCGCGPIO_R;    // allow time for clock to stabilize
+    timeout();
+
     GPIO_PORTC_DIR_R = 0xFF;    // make Port C output
     GPIO_PORTC_AFSEL_R = 0x0;   // disable alternate function on PE0
     GPIO_PORTC_DEN_R = 0xFF;    // enable digital I/O on PE0
@@ -45,7 +62,8 @@ void init_gpio() {
 
 void init_timer(uint32_t period){
     SYSCTL_RCGCTIMER_R |= 0x01;   // 4) activate timer0
-    volatile uint32_t delay = SYSCTL_RCGCGPIO_R;
+    timeout();
+
     TIMER0_CTL_R = 0x00000000;    // disable timer0A during setup
     TIMER0_CTL_R |= 0x00000020;   // enable timer0A trigger to ADC
     TIMER0_CFG_R = 0;             // configure for 32-bit timer mode
@@ -60,14 +78,16 @@ int main(void)
 
     PLL_Init(80000000);
 
-    init_adc();
-
     init_gpio();
 
-    init_timer(200);
+    init_timer(120);   // <--- !!! Change me
+
+    init_adc();
 
     TIMER0_CTL_R |= 0x00000001;   // enable timer0A 32-b, periodic, no interrupts
-    ADC0_ACTSS_R = 0x4;             //Enable SS3
+    ADC0_ACTSS_R = 0x8;             //Enable SS3
+
+    EnableInterrupts();
 
     for(;;){
 
